@@ -1,0 +1,243 @@
+---
+alwaysApply: true
+description: Authentication and authorization with Clerk - ensuring users can only access their own data
+---
+
+# Authentication and Authorization with Clerk
+
+This project uses **Clerk** for authentication. Security is critical - users must ONLY be able to access their own data.
+
+## Clerk Setup
+
+- Middleware is configured in [src/middleware.ts](mdc:src/middleware.ts)
+- All routes are protected by default via `clerkMiddleware()`
+- User authentication is handled entirely by Clerk
+
+## Getting the Current User
+
+Always use Clerk's server-side functions to get the authenticated user:
+
+```typescript
+import { auth } from "@clerk/nextjs/server";
+
+export async function GET() {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  
+  // Now use userId for database queries
+}
+```
+
+For server components:
+
+```typescript
+import { auth } from "@clerk/nextjs/server";
+
+export default async function MyPage() {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    redirect("/sign-in");
+  }
+  
+  // Use userId
+}
+```
+
+## Critical Authorization Rules
+
+### 1. Always Filter by userId for Decks
+
+The [decksTable](mdc:src/db/schema.ts) has a `userId` field. **ALWAYS** include a `userId` filter when querying decks:
+
+```typescript
+import { db } from "@/db";
+import { decksTable } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+
+// ✅ CORRECT - filters by userId
+const userDecks = await db
+  .select()
+  .from(decksTable)
+  .where(eq(decksTable.userId, userId));
+
+// ✅ CORRECT - getting a specific deck with userId check
+const deck = await db
+  .select()
+  .from(decksTable)
+  .where(and(
+    eq(decksTable.id, deckId),
+    eq(decksTable.userId, userId)
+  ))
+  .limit(1);
+
+// ❌ WRONG - missing userId filter (security vulnerability!)
+const allDecks = await db
+  .select()
+  .from(decksTable);
+```
+
+### 2. Verify Deck Ownership for Card Operations
+
+The [cardsTable](mdc:src/db/schema.ts) doesn't have a direct `userId` field, but cards belong to decks. **ALWAYS** verify deck ownership before accessing/modifying cards:
+
+```typescript
+import { db } from "@/db";
+import { decksTable, cardsTable } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+
+// ✅ CORRECT - verify deck ownership first
+const deck = await db
+  .select()
+  .from(decksTable)
+  .where(and(
+    eq(decksTable.id, deckId),
+    eq(decksTable.userId, userId)
+  ))
+  .limit(1);
+
+if (!deck.length) {
+  return new Response("Forbidden", { status: 403 });
+}
+
+// Now safe to query cards for this deck
+const cards = await db
+  .select()
+  .from(cardsTable)
+  .where(eq(cardsTable.deckId, deckId));
+
+// ❌ WRONG - accessing cards without verifying deck ownership
+const cards = await db
+  .select()
+  .from(cardsTable)
+  .where(eq(cardsTable.deckId, deckId));
+```
+
+### 3. Use Joins with Authorization
+
+When joining tables, always include userId checks:
+
+```typescript
+// ✅ CORRECT - join with userId filter
+const deckWithCards = await db
+  .select()
+  .from(decksTable)
+  .leftJoin(cardsTable, eq(cardsTable.deckId, decksTable.id))
+  .where(and(
+    eq(decksTable.id, deckId),
+    eq(decksTable.userId, userId)
+  ));
+```
+
+### 4. Server Actions and API Routes
+
+All server actions and API routes must:
+1. Get the userId from Clerk
+2. Return 401 if not authenticated
+3. Filter all queries by userId or verify ownership
+
+```typescript
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
+import { decksTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+export async function createDeck(name: string, description: string) {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+  
+  const [newDeck] = await db
+    .insert(decksTable)
+    .values({ name, description, userId })
+    .returning();
+    
+  return newDeck;
+}
+
+export async function deleteDeck(deckId: number) {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+  
+  // Verify ownership before deleting
+  const result = await db
+    .delete(decksTable)
+    .where(and(
+      eq(decksTable.id, deckId),
+      eq(decksTable.userId, userId)
+    ))
+    .returning();
+    
+  if (!result.length) {
+    throw new Error("Deck not found or unauthorized");
+  }
+  
+  return result[0];
+}
+```
+
+## Security Checklist
+
+For every database operation:
+- [ ] Get userId from `auth()`
+- [ ] Check if userId exists (return 401 if not)
+- [ ] For decks: filter by `eq(decksTable.userId, userId)`
+- [ ] For cards: verify deck ownership first
+- [ ] Never trust client-provided user IDs
+- [ ] Never expose other users' data
+
+## Common Vulnerabilities to Avoid
+
+❌ **Never do this:**
+```typescript
+// Taking userId from request body (can be spoofed!)
+export async function POST(request: Request) {
+  const { userId, deckId } = await request.json();
+  // WRONG - attacker can pass any userId!
+}
+
+// Querying without userId filter
+const decks = await db.select().from(decksTable);
+
+// Using deckId/cardId from URL without ownership check
+const cards = await db
+  .select()
+  .from(cardsTable)
+  .where(eq(cardsTable.deckId, params.deckId));
+```
+
+✅ **Always do this:**
+```typescript
+// Get userId from Clerk (secure, server-side)
+export async function POST(request: Request) {
+  const { userId } = await auth();
+  const { deckId } = await request.json();
+  
+  // Verify ownership
+  const deck = await db
+    .select()
+    .from(decksTable)
+    .where(and(
+      eq(decksTable.id, deckId),
+      eq(decksTable.userId, userId)
+    ));
+    
+  if (!deck.length) {
+    return new Response("Forbidden", { status: 403 });
+  }
+}
+```
+
+## Remember
+
+🔒 **Security First**: Every database query must verify user ownership. When in doubt, add an extra ownership check rather than risking a data leak.

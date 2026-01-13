@@ -1,0 +1,80 @@
+---
+alwaysApply: true
+description: Guidelines for database interactions using Drizzle ORM
+---
+
+# Database Interactions with Drizzle ORM
+
+All database interactions in this project must use Drizzle ORM with the schema definitions and query builder.
+
+## Schema Reference
+
+The database schema is defined in [src/db/schema.ts](mdc:src/db/schema.ts) and includes:
+
+- `decksTable` - Collections of flashcards with user associations
+- `cardsTable` - Individual flashcards within decks
+
+## Database Connection
+
+Database connection is configured in [src/db/index.ts](mdc:src/db/index.ts).
+
+## Required Practices
+
+1. **Always import from the schema**:
+   ```typescript
+   import { decksTable, cardsTable } from "@/db/schema";
+   import { db } from "@/db";
+   ```
+
+2. **Use Drizzle query builder** for all database operations:
+   - SELECT: `db.select().from(table).where(...)`
+   - INSERT: `db.insert(table).values(...)`
+   - UPDATE: `db.update(table).set(...).where(...)`
+   - DELETE: `db.delete(table).where(...)`
+
+3. **Never use raw SQL queries** unless absolutely necessary for complex operations
+
+4. **Use proper TypeScript types** inferred from the schema:
+   ```typescript
+   import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+   type Deck = InferSelectModel<typeof decksTable>;
+   type NewDeck = InferInsertModel<typeof decksTable>;
+   ```
+
+5. **Leverage foreign key relationships** - `cardsTable.deckId` references `decksTable.id` with cascade delete
+
+6. **Use transactions** for operations that modify multiple tables:
+   ```typescript
+   await db.transaction(async (tx) => {
+     // multiple operations
+   });
+   ```
+
+## Examples
+
+### Query with filter:
+```typescript
+const userDecks = await db
+  .select()
+  .from(decksTable)
+  .where(eq(decksTable.userId, userId));
+```
+
+### Insert with returning:
+```typescript
+const [newDeck] = await db
+  .insert(decksTable)
+  .values({ name, description, userId })
+  .returning();
+```
+
+### Join tables:
+```typescript
+import { eq } from "drizzle-orm";
+
+const deckWithCards = await db
+  .select()
+  .from(decksTable)
+  .leftJoin(cardsTable, eq(cardsTable.deckId, decksTable.id))
+  .where(eq(decksTable.id, deckId));
+```
