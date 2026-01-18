@@ -1,9 +1,25 @@
 ---
 alwaysApply: true
 ---
-# shadcn/ui Usage
+# shadcn/ui Usage - STRICT ENFORCEMENT
 
-This project uses **shadcn/ui** for all UI elements.
+This project uses **shadcn/ui** for **ALL** UI elements. **NO CUSTOM UI COMPONENTS ARE PERMITTED.**
+
+## CRITICAL RULES
+
+### ✅ REQUIRED
+- **ONLY** use shadcn/ui components for all UI elements
+- **ALL** buttons, inputs, cards, dialogs, forms, and other UI elements **MUST** come from shadcn/ui
+- Components are located in `src/components/ui/` after installation
+- Import components from `@/components/ui/[component-name]`
+- This project is in dark mode so make sure there are no dark colored text on
+  dark backgrounds (and vice versa)
+
+### ❌ FORBIDDEN
+- **NEVER** create custom UI components (buttons, inputs, cards, etc.)
+- **NEVER** write custom styling for basic UI elements that shadcn/ui provides
+- **NEVER** use unstyled HTML elements like `<button>`, `<input>`, `<select>` directly
+- **NEVER** create wrapper components that bypass shadcn/ui components
 
 ## Initialization
 
@@ -21,23 +37,121 @@ To add a specific component (for example, the button component), use:
 npx shadcn@latest add button
 ```
 
-## Component Usage
+**ALWAYS** install the shadcn/ui component before using it. If a component doesn't exist in `src/components/ui/`, install it first.
 
-- Always prefer shadcn/ui components over custom implementations
-- Components are located in `src/components/ui/` after installation
-- Import components from `@/components/ui/[component-name]`
+## Required shadcn/ui Components
 
-## Common Components
-
-When building UI features, consider using these shadcn/ui components:
-- `button` - For all button interactions
-- `card` - For content containers
-- `input` - For form inputs
-- `dialog` - For modals and dialogs
-- `form` - For form handling with validation
-- `toast` - For notifications
-- `dropdown-menu` - For dropdown menus
-- `table` - For data tables
-- `tabs` - For tabbed interfaces
+When building UI features, you **MUST** use these shadcn/ui components:
+- `button` - For **ALL** button interactions (including Clerk auth buttons)
+- `card` - For **ALL** content containers
+- `input` - For **ALL** form inputs
+- `dialog` - For **ALL** modals and dialogs (including Clerk auth flows)
+- `form` - For **ALL** form handling with validation
+- `toast` - For **ALL** notifications
+- `dropdown-menu` - For **ALL** dropdown menus
+- `table` - For **ALL** data tables
+- `tabs` - For **ALL** tabbed interfaces
+- `select` - For **ALL** select dropdowns
+- `textarea` - For **ALL** multi-line text inputs
+- `checkbox` - For **ALL** checkboxes
+- `label` - For **ALL** form labels
 
 Install any component as needed with `npx shadcn@latest add [component-name]`.
+
+## Clerk Integration - REQUIRED APPROACH
+
+### Authentication Buttons
+
+**ALL** Clerk sign in and sign up buttons **MUST** use shadcn/ui Button components:
+
+```typescript
+import { Button } from "@/components/ui/button";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
+
+// ✅ CORRECT - Use shadcn/ui Button
+<SignInButton mode="modal">
+  <Button>Sign In</Button>
+</SignInButton>
+
+<SignUpButton mode="modal">
+  <Button variant="outline">Sign Up</Button>
+</SignUpButton>
+```
+
+### Authentication Flows
+
+**ALWAYS** use `mode="modal"` for Clerk authentication to launch sign in/sign up in a modal dialog:
+
+```typescript
+// ✅ CORRECT - Modal mode
+<SignInButton mode="modal">
+  <Button>Sign In</Button>
+</SignInButton>
+
+// ❌ WRONG - Redirect mode (don't use this)
+<SignInButton mode="redirect">
+  <Button>Sign In</Button>
+</SignInButton>
+```
+
+### User Button
+
+For the Clerk UserButton component, wrap it in shadcn/ui components when needed:
+
+```typescript
+import { UserButton } from "@clerk/nextjs";
+
+// Use UserButton directly (it has its own styling)
+<UserButton afterSignOutUrl="/" />
+```
+
+## Examples
+
+### ✅ CORRECT - Using shadcn/ui components:
+
+```typescript
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
+
+export function MyComponent() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>My Card</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Input placeholder="Enter text..." />
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>Open Dialog</Button>
+          </DialogTrigger>
+          <DialogContent>
+            {/* Dialog content */}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### ❌ WRONG - Custom UI components:
+
+```typescript
+// NEVER DO THIS
+export function MyComponent() {
+  return (
+    <div className="border rounded-lg p-4">
+      <h2>My Card</h2>
+      <input type="text" placeholder="Enter text..." />
+      <button onClick={handleClick}>Click me</button>
+    </div>
+  );
+}
+```
+
+## Enforcement
+
+If a shadcn/ui component exists for a UI element you need, you **MUST** use it. There are no exceptions to this rule.

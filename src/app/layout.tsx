@@ -39,7 +39,7 @@ export default function RootLayout({
           className={`${poppins.variable} font-sans antialiased`}
         >
           <header className="flex justify-between items-center p-4 border-b border-gray-800">
-            <div className="text-xl font-semibold">FlashyCardy</div>
+            <div className="text-xl font-semibold">FlashCardy</div>
             <div className="flex gap-2">
               <SignedOut>
                 <SignInButton mode="modal">
