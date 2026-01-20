@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { cardsTable, decksTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 type Card = InferSelectModel<typeof cardsTable>;
@@ -22,11 +22,12 @@ export async function getDeckCards(deckId: number, userId: string): Promise<Card
     return [];
   }
   
-  // Get all cards for this deck
+  // Get all cards for this deck, sorted by updatedAt (latest first)
   return await db
     .select()
     .from(cardsTable)
-    .where(eq(cardsTable.deckId, deckId));
+    .where(eq(cardsTable.deckId, deckId))
+    .orderBy(desc(cardsTable.updatedAt));
 }
 
 // READ - Get a single card by ID (with user authorization)
@@ -110,7 +111,10 @@ export async function updateCardById(
   // Update the card
   const [card] = await db
     .update(cardsTable)
-    .set(data)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
     .where(and(
       eq(cardsTable.id, cardId),
       eq(cardsTable.deckId, deckId)

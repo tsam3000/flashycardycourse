@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { updateCard } from "@/actions/cards";
+import { updateCard, deleteCard } from "@/actions/cards";
+import { Trash2 } from "lucide-react";
 
 interface EditableCardProps {
   card: {
@@ -24,11 +25,11 @@ interface EditableCardProps {
     front: string;
     back: string;
   };
-  cardNumber: number;
 }
 
-export function EditableCard({ card, cardNumber }: EditableCardProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function EditableCard({ card }: EditableCardProps) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [front, setFront] = useState(card.front);
   const [back, setBack] = useState(card.back);
   const [isPending, startTransition] = useTransition();
@@ -44,7 +45,7 @@ export function EditableCard({ card, cardNumber }: EditableCardProps) {
           front,
           back,
         });
-        setIsOpen(false);
+        setIsEditOpen(false);
       } catch (error) {
         console.error("Failed to update card:", error);
         alert("Failed to update card. Please try again.");
@@ -52,20 +53,28 @@ export function EditableCard({ card, cardNumber }: EditableCardProps) {
     });
   };
 
+  const handleDelete = async () => {
+    startTransition(async () => {
+      try {
+        await deleteCard({
+          id: card.id,
+          deckId: card.deckId,
+        });
+        setIsDeleteOpen(false);
+      } catch (error) {
+        console.error("Failed to delete card:", error);
+        alert("Failed to delete card. Please try again.");
+      }
+    });
+  };
+
   return (
     <Card className="flex flex-col h-full">
-      <CardHeader className="space-y-4">
-        <div className="flex justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
-            {cardNumber}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <CardTitle className="text-base text-center">Front</CardTitle>
-          <CardDescription className="text-center min-h-[60px]">
-            {card.front}
-          </CardDescription>
-        </div>
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-base text-center">Front</CardTitle>
+        <CardDescription className="text-center min-h-[60px]">
+          {card.front}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-between space-y-4">
         <div className="space-y-2">
@@ -74,60 +83,108 @@ export function EditableCard({ card, cardNumber }: EditableCardProps) {
             {card.back}
           </p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full">
-              Edit
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
-            <form onSubmit={handleSubmit}>
+        <div className="flex gap-2">
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="flex-1">
+                Edit
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
+              <form onSubmit={handleSubmit}>
+                <DialogHeader>
+                  <DialogTitle>Edit Card</DialogTitle>
+                  <DialogDescription>
+                    Make changes to your flashcard here. Click save when you're done.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="front">Front</Label>
+                    <Textarea
+                      id="front"
+                      value={front}
+                      onChange={(e) => setFront(e.target.value)}
+                      placeholder="Enter the front of the card..."
+                      required
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="back">Back</Label>
+                    <Textarea
+                      id="back"
+                      value={back}
+                      onChange={(e) => setBack(e.target.value)}
+                      placeholder="Enter the back of the card..."
+                      required
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditOpen(false)}
+                    disabled={isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? "Saving..." : "Save changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Edit Card {cardNumber}</DialogTitle>
+                <DialogTitle>Delete Card</DialogTitle>
                 <DialogDescription>
-                  Make changes to your flashcard here. Click save when you're done.
+                  Are you sure you want to delete this card? This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="front">Front</Label>
-                  <Textarea
-                    id="front"
-                    value={front}
-                    onChange={(e) => setFront(e.target.value)}
-                    placeholder="Enter the front of the card..."
-                    required
-                    rows={3}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="back">Back</Label>
-                  <Textarea
-                    id="back"
-                    value={back}
-                    onChange={(e) => setBack(e.target.value)}
-                    placeholder="Enter the back of the card..."
-                    required
-                    rows={3}
-                  />
+              <div className="py-4">
+                <div className="space-y-2 p-4 bg-muted rounded-lg">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Front:</p>
+                    <p className="text-sm text-muted-foreground">{card.front}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Back:</p>
+                    <p className="text-sm text-muted-foreground">{card.back}</p>
+                  </div>
                 </div>
               </div>
               <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => setIsDeleteOpen(false)}
                   disabled={isPending}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? "Saving..." : "Save changes"}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isPending}
+                >
+                  {isPending ? "Deleting..." : "Delete"}
                 </Button>
               </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardContent>
     </Card>
   );

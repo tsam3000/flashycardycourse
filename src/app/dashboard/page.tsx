@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getUserDecks } from "@/db/queries/decks";
+import { CreateDeckButton } from "@/components/CreateDeckButton";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -15,14 +16,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="container mx-auto p-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">
-          {decks.length === 0 
-            ? "You don't have any decks yet. Create your first deck to get started!"
-            : `You have ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'}.`
-          }
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">
+            {decks.length === 0 
+              ? "You don't have any decks yet. Create your first deck to get started!"
+              : `You have ${decks.length} ${decks.length === 1 ? 'deck' : 'decks'}.`
+            }
+          </p>
+        </div>
+        <CreateDeckButton />
       </div>
 
       {decks.length === 0 ? (
