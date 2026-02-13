@@ -12,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateCard, deleteCard } from "@/actions/cards";
@@ -95,7 +94,7 @@ export function EditableCard({ card }: EditableCardProps) {
                 <DialogHeader>
                   <DialogTitle>Edit Card</DialogTitle>
                   <DialogDescription>
-                    Make changes to your flashcard here. Click save when you're done.
+                    Make changes to your flashcard here. Click save when you&apos;re done.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
