@@ -7,6 +7,7 @@ import {
   insertDeck,
   updateDeckById,
   deleteDeckById,
+  getDeckCountForUser,
 } from "@/db/queries/decks";
 
 // CREATE
@@ -18,10 +19,22 @@ const createDeckSchema = z.object({
 type CreateDeckInput = z.infer<typeof createDeckSchema>;
 
 export async function createDeck(input: CreateDeckInput) {
-  const { userId } = await auth();
+  const { userId, has } = await auth();
   if (!userId) throw new Error("Unauthorized");
   
   const validated = createDeckSchema.parse(input);
+  
+  // Check if user has unlimited decks feature
+  const hasUnlimitedDecks = has({ feature: 'unlimited_decks' });
+  
+  if (!hasUnlimitedDecks) {
+    // Check if user has hit the 3 deck limit
+    const deckCount = await getDeckCountForUser(userId);
+    
+    if (deckCount >= 3) {
+      throw new Error("Free users are limited to 3 decks. Upgrade to Pro for unlimited decks.");
+    }
+  }
   
   // Call query function
   const deck = await insertDeck({

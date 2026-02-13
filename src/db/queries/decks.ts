@@ -68,3 +68,13 @@ export async function deleteDeckById(deckId: number, userId: string): Promise<De
   
   return deck || null;
 }
+
+// COUNT - Get the number of decks for a user
+export async function getDeckCountForUser(userId: string): Promise<number> {
+  const decks = await db
+    .select()
+    .from(decksTable)
+    .where(eq(decksTable.userId, userId));
+  
+  return decks.length;
+}
